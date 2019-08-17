@@ -1,17 +1,11 @@
 """
 
-background - not part of the mosaic piece, currently transparency
-bulk       - part of the mosaic piece, has defined color
-border     - background, adjacent to a bulk point 
-point      - node on a border or bulk pixel, which are linked together to create the mosaic
-
 """
 
-filename_base='3'
+
 max_size=15 #pixels
 min_size=5
-max_connections=4
-border_color=(255,149,133)
+border_color=(0,0,0)
 
 import numpy as np
 from PIL import Image
@@ -430,86 +424,69 @@ def Click_Loop(event):
 	plt.draw()
 
 
+def file_is_target(infilename):
+	is_target=False
+	valid_characters=['0','1','2','3','4','5','6','7','8','9']
+	if len(infilename)>4 and infilename[-4:]=='.png':
+		is_target=True
+		for char in infilename[:-4]:
+			if char not in valid_characters:
+				is_target=False
+	return is_target
+
+
+
 if __name__ == '__main__':
 	directory_path=dirname(realpath(__file__))
-	directory_files=[f for f in listdir(directory_path) if isfile(join(directory_path, f))]
-	if filename_base+'.png' not in directory_files:
-		print("File not found!")
+	target_files=[f for f in listdir(directory_path) if isfile(join(directory_path, f)) and file_is_target(f)]
+	if len(target_files)==0:
+		print("No files found!")
+	
 	else:
-		#Read in and pad the image file
-		raw_image=Image.open(filename_base+'.png')
-		raw_width,raw_height=raw_image.size
-		raw_pixels=raw_image.load()
-		padded_width=raw_width+2
-		padded_height=raw_height+2
-		padded_image=Image.new('RGBA',(padded_width,padded_height),(0, 0, 0, 0))
-		padded_pixels=padded_image.load()
-		for idx_x in range(raw_width):
-			for idx_y in range(raw_height):
-				padded_pixels[idx_x+1,idx_y+1]=raw_pixels[idx_x,idx_y]
+		#Get maximum size of images
+		max_width=1
+		max_height=1
+		for im_file in target_files:
+			raw_image=Image.open(im_file)
+			raw_width,raw_height=raw_image.size
+			max_width=max(max_width,raw_width)
+			max_height=max(max_height,raw_height)
 
-		#Set up border
-		border_list,border_pixels=border_to_list(padded_pixels,padded_width,padded_height)
-		for pixel_coords in border_list:
-			padded_image.putpixel(pixel_coords,border_color)
+		final_width=max_width+2
+		final_height=max_height+2
+		final_image=Image.new('RGBA',(final_width,final_height),(0, 0, 0, 0))
+		final_pixels=final_image.load()
+		border_pixels_all=np.zeros((final_width,final_height),dtype='int32')
+		border_list_all=[]
 
-		#Read in previous points and connections
-		if filename_base+'.txt' in directory_files:
-			points_coordinates_read,points_type_read,points_connections_read,points_idx_read=read_in_saved(filename_base)
+		for im_file in target_files:
+			print(im_file)
+			raw_image=Image.open(im_file)
+			raw_pixels=raw_image.load()
+			padded_width=raw_width+2
+			padded_height=raw_height+2
+			padded_image=Image.new('RGBA',(padded_width,padded_height),(0, 0, 0, 0))
+			padded_pixels=padded_image.load()
+			for idx_x in range(raw_width):
+				for idx_y in range(raw_height):
+					padded_pixels[idx_x+1,idx_y+1]=raw_pixels[idx_x,idx_y]
+					if not pixel_is_background(raw_pixels[idx_x,idx_y]):
+						final_pixels[idx_x+1,idx_y+1]=raw_pixels[idx_x,idx_y]
 
-			#Check over read-in points TODO
-			if len(points_idx_read)>0:
-				read_to_old=[0 for idx in range(max(points_idx_read)+1)]
-			old_to_new=[]
-			for idx in range(len(points_coordinates_read)):
-				read_to_old[points_idx_read[idx]]=idx
-				old_to_new.append(None)
-				idx_x=points_coordinates_read[idx][0]
-				idx_y=points_coordinates_read[idx][1]
-				near_point,idx_near=pixel_near_point(points_coordinates_read[idx][0], points_coordinates_read[idx][1], points_coordinates, points_type)
-				if points_type_read[idx]==0:
-					if border_pixels[idx_x,idx_y]==1 and not near_point:
-						points_coordinates.append(points_coordinates_read[idx])
-						points_type.append(0)
-						points_connections.append([])
-						old_to_new[-1]=len(points_coordinates)-1
-				elif points_type_read[idx]==1:
-					if not pixel_is_background(padded_pixels[idx_x,idx_y]) and not near_point:
-						points_coordinates.append(points_coordinates_read[idx])
-						points_type.append(1)
-						points_connections.append([])
-						old_to_new[-1]=len(points_coordinates)-1
-			for idx in range(len(points_connections_read)):
-				idx1=old_to_new[read_to_old[points_connections_read[idx][0]]]
-				idx2=old_to_new[read_to_old[points_connections_read[idx][1]]]
-				if idx1!=None and idx2!=None:
-					if idx1>idx2:
-						points_connections[idx2].append(idx1)
-					else:
-						points_connections[idx1].append(idx2)
-
-		#Create image and run the GUI mode
-		selected_point_idx=[None,None]
+			#Set up border
+			border_list,border_pixels=border_to_list(padded_pixels,padded_width,padded_height)
+			border_list_all.append(border_list)
+			border_pixels_all[:len(border_pixels[:,0]),:len(border_pixels[0,:])]+=border_pixels[:,:]
+		for idx_x in range(final_width):
+			for idx_y in range(final_height):
+				if border_pixels_all[idx_x,idx_y]!=0:
+					final_pixels[idx_x,idx_y]=border_color
+			
 		fig1=plt.figure()
 		ax1=fig1.gca()
-		draw_full_figure(padded_image)
-		cid_up = fig1.canvas.mpl_connect('button_press_event', Click_Loop)
+		plt.imshow(final_image)
 		plt.show()
 
-		#Clean up points and connections
-		points_coordinates, points_type, points_connections=clean_points_connections(points_coordinates,points_type,points_connections)
 
-		#Output latest
-		outfile=open(filename_base+'.txt','w')
-		print("Points",file=outfile)
-		print("Number | Type | Coordinates",file=outfile)
-		for idx in range(len(points_coordinates)):
-			print(idx,points_type[idx],points_coordinates[idx][0],",",points_coordinates[idx][1],file=outfile)
-		print("",file=outfile)
-		print("Connections",file=outfile)
-		for idx in range(len(points_connections)):
-			for idx2 in points_connections[idx]:
-				print(idx," -> ",idx2,file=outfile)
-		outfile.close()
 
 
