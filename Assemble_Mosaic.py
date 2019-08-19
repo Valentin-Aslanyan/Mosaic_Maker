@@ -6,6 +6,7 @@
 max_size=15 #pixels
 min_size=5
 border_color=(0,0,0)
+minimum_piece_size=5
 
 import numpy as np
 from PIL import Image
@@ -52,127 +53,20 @@ def pixel_near_point(idx_x,idx_y,points_c,points_t):
 
 #Must have image bordered by background; should pad raw image with background border beforehand
 #Create an ordered list of background pixels adjacent to a bulk pixel; list should be a closed path
-def border_to_list(input_pixels,input_width,input_height):
+def border_to_array(input_pixels,input_width,input_height):
 	border_pixels=np.zeros((input_width,input_height),dtype='int32')
 
 	for idx_x in range(1,input_width-1):
 		for idx_y in range(1,input_height-1):
-			if not pixel_is_background(input_pixels[idx_x,idx_y]):
-				if pixel_is_background(input_pixels[idx_x-1,idx_y-1]):
-					border_pixels[idx_x-1,idx_y-1]=1
-				if pixel_is_background(input_pixels[idx_x-1,idx_y]):
-					border_pixels[idx_x-1,idx_y]=1
-				if pixel_is_background(input_pixels[idx_x-1,idx_y+1]):
-					border_pixels[idx_x-1,idx_y+1]=1
-				if pixel_is_background(input_pixels[idx_x,idx_y-1]):
-					border_pixels[idx_x,idx_y-1]=1
-				if pixel_is_background(input_pixels[idx_x,idx_y+1]):
-					border_pixels[idx_x,idx_y+1]=1
-				if pixel_is_background(input_pixels[idx_x+1,idx_y-1]):
-					border_pixels[idx_x+1,idx_y-1]=1
-				if pixel_is_background(input_pixels[idx_x+1,idx_y]):
-					border_pixels[idx_x+1,idx_y]=1
-				if pixel_is_background(input_pixels[idx_x+1,idx_y+1]):
-					border_pixels[idx_x+1,idx_y+1]=1
-	total_border_pixels=sum(border_pixels.flatten())
+			if pixel_is_edge(input_pixels,idx_x,idx_y,input_width,input_height):
+				border_pixels[idx_x,idx_y]=1
 
-	border_list=[]
-	border_located=False
-	idx_x=0
-	while border_located==False and idx_x<input_width:
-		idx_y=0
-		while border_located==False and idx_y<input_height:
-			if border_pixels[idx_x,idx_y]==1:
-					border_list.append([idx_x,idx_y])
-					labelled_pixels=1
-					border_located=True
-			idx_y+=1
-		idx_x+=1
-
-
-	start_not_reached=True
-	idx_x=border_list[-1][0]
-	idx_y=border_list[-1][1]
-	if idx_x+1<input_width and border_pixels[idx_x+1,idx_y]==1:
-		border_list.append([idx_x+1,idx_y])
-		labelled_pixels+=1
-	elif idx_y+1<input_height and border_pixels[idx_x,idx_y+1]==1:
-		border_list.append([idx_x,idx_y+1])
-		labelled_pixels+=1
-	elif idx_x>0 and border_pixels[idx_x-1,idx_y]==1:
-		border_list.append([idx_x-1,idx_y])
-		labelled_pixels+=1
-	elif idx_y>0 and border_pixels[idx_x,idx_y-1]==1:
-		border_list.append([idx_x,idx_y-1])
-		labelled_pixels+=1
-	else:
-		start_not_reached=False
-	while total_border_pixels>labelled_pixels and start_not_reached:
-		idx_x=border_list[-1][0]
-		idx_y=border_list[-1][1]
-		if border_list[-1][0]-border_list[-2][0]==0:
-			if border_list[-1][1]-border_list[-2][1]>0:	#moving up
-				if idx_x+1<input_width and border_pixels[idx_x+1,idx_y]==1:
-					border_list.append([idx_x+1,idx_y])
-					labelled_pixels+=1
-				elif idx_y+1<input_height and border_pixels[idx_x,idx_y+1]==1:
-					border_list.append([idx_x,idx_y+1])
-					labelled_pixels+=1
-				elif idx_x>0 and border_pixels[idx_x-1,idx_y]==1:
-					border_list.append([idx_x-1,idx_y])
-					labelled_pixels+=1
-				elif idx_y>0 and border_pixels[idx_x,idx_y-1]==1:
-					border_list.append([idx_x,idx_y-1])
-					labelled_pixels+=1
-			else:						#moving down
-				if idx_x>0 and border_pixels[idx_x-1,idx_y]==1:
-					border_list.append([idx_x-1,idx_y])
-					labelled_pixels+=1
-				elif idx_y>0 and border_pixels[idx_x,idx_y-1]==1:
-					border_list.append([idx_x,idx_y-1])
-					labelled_pixels+=1
-				elif idx_x+1<input_width and border_pixels[idx_x+1,idx_y]==1:
-					border_list.append([idx_x+1,idx_y])
-					labelled_pixels+=1
-				elif idx_y+1<input_height and border_pixels[idx_x,idx_y+1]==1:
-					border_list.append([idx_x,idx_y+1])
-					labelled_pixels+=1
-		else:
-			if border_list[-1][0]-border_list[-2][0]>0:	#moving right
-				if idx_y>0 and border_pixels[idx_x,idx_y-1]==1:
-					border_list.append([idx_x,idx_y-1])
-					labelled_pixels+=1
-				elif idx_x+1<input_width and border_pixels[idx_x+1,idx_y]==1:
-					border_list.append([idx_x+1,idx_y])
-					labelled_pixels+=1
-				elif idx_y+1<input_height and border_pixels[idx_x,idx_y+1]==1:
-					border_list.append([idx_x,idx_y+1])
-					labelled_pixels+=1
-				elif idx_x>0 and border_pixels[idx_x-1,idx_y]==1:
-					border_list.append([idx_x-1,idx_y])
-					labelled_pixels+=1
-			else:						#moving left
-				if idx_y+1<input_height and border_pixels[idx_x,idx_y+1]==1:
-					border_list.append([idx_x,idx_y+1])
-					labelled_pixels+=1
-				elif idx_x>0 and border_pixels[idx_x-1,idx_y]==1:
-					border_list.append([idx_x-1,idx_y])
-					labelled_pixels+=1
-				elif idx_y>0 and border_pixels[idx_x,idx_y-1]==1:
-					border_list.append([idx_x,idx_y-1])
-					labelled_pixels+=1
-				elif idx_x+1<input_width and border_pixels[idx_x+1,idx_y]==1:
-					border_list.append([idx_x+1,idx_y])
-					labelled_pixels+=1
-		if border_list[-1][0]==border_list[0][0] and border_list[-1][1]==border_list[0][1]:
-			start_not_reached=False
-
-	return border_list,border_pixels
+	return border_pixels
 	
 
 #Search around the coordinates of a click for a border pixel
 #If pixel found, return convergence_reached=True and the pixel coordinates
-def pin_click_to_border(new_point_click,input_pixels,input_width,input_height):
+def pin_click_to_border(new_point_click,input_pixels,input_width,input_height,border_pixels):
 	new_point=[0,0]
 
 	#Look for border near click
@@ -184,7 +78,7 @@ def pin_click_to_border(new_point_click,input_pixels,input_width,input_height):
 			idx_x=max([0,new_point_click[0]-current_distance+1])
 			idx_x_limit=min([input_width,new_point_click[0]+current_distance+1])
 			while convergence_reached==False and idx_x<idx_x_limit:
-				if pixels_are_equal(input_pixels[idx_x,idx_y],border_color):
+				if border_pixels[idx_x,idx_y]!=0:
 					convergence_reached=True
 					new_point=[idx_x,idx_y]
 				idx_x+=1
@@ -193,7 +87,7 @@ def pin_click_to_border(new_point_click,input_pixels,input_width,input_height):
 			idx_y=max([0,new_point_click[1]-current_distance+1])
 			idx_y_limit=min([input_height,new_point_click[1]+current_distance+1])
 			while convergence_reached==False and idx_y<idx_y_limit:
-				if pixels_are_equal(input_pixels[idx_x,idx_y],border_color):
+				if border_pixels[idx_x,idx_y]!=0:
 					convergence_reached=True
 					new_point=[idx_x,idx_y]
 				idx_y+=1
@@ -202,7 +96,7 @@ def pin_click_to_border(new_point_click,input_pixels,input_width,input_height):
 			idx_x=min([input_width-1,new_point_click[0]+current_distance-1])
 			idx_x_limit=max([0,new_point_click[0]-current_distance-1])
 			while convergence_reached==False and idx_x>idx_x_limit:
-				if pixels_are_equal(input_pixels[idx_x,idx_y],border_color):
+				if border_pixels[idx_x,idx_y]!=0:
 					convergence_reached=True
 					new_point=[idx_x,idx_y]
 				idx_x-=1
@@ -211,55 +105,12 @@ def pin_click_to_border(new_point_click,input_pixels,input_width,input_height):
 			idx_y=min([input_height-1,new_point_click[1]+current_distance-1])
 			idx_y_limit=max([0,new_point_click[1]-current_distance-1])
 			while convergence_reached==False and idx_y>idx_y_limit:
-				if pixels_are_equal(input_pixels[idx_x,idx_y],border_color):
+				if border_pixels[idx_x,idx_y]!=0:
 					convergence_reached=True
 					new_point=[idx_x,idx_y]
 				idx_y-=1
 		current_distance+=1
 	return convergence_reached,new_point
-
-
-#Cyclically link points on the border to each other
-def assign_border_connections(border_list,points_coordinates,points_type,image_width):
-
-	border_arr=np.array(border_list)
-	border_arr_flat=image_width*border_arr[:,1]+border_arr[:,0]
-	points_arr=np.array(points_coordinates)
-	points_arr_flat=image_width*points_arr[:,1]+points_arr[:,0]
-	border_connections=[[] for idx in range(len(points_coordinates))]
-	border_connections_paths=[[] for idx in range(len(points_coordinates))]
-
-	num_border=0
-	for idx in range(len(points_type)):
-		if points_type[idx]==0:
-			num_border+=1
-
-	#Connect all border points in a cycle
-	if num_border>1:
-		for idx_p in range(len(points_coordinates)):
-			if points_type[idx_p]==0:
-				idx_b=np.argwhere(border_arr_flat==points_arr_flat[idx_p])[0,0]
-				next_point_found=False
-				idx_b2=idx_b+1
-				while next_point_found==False and idx_b2<len(border_arr_flat):
-					if border_arr_flat[idx_b2] in points_arr_flat:
-						next_point_found=True
-						idx_b3=np.argwhere(points_arr_flat==border_arr_flat[idx_b2])[0,0]
-						path=border_arr[idx_b:idx_b2+1,:]
-						border_connections[idx_p].append(idx_b3)
-						border_connections[idx_b3].append(idx_p)
-					idx_b2+=1
-				idx_b2=0
-				while next_point_found==False and idx_b2<len(border_arr_flat):
-					if border_arr_flat[idx_b2] in points_arr_flat:
-						next_point_found=True
-						idx_b3=np.argwhere(points_arr_flat==border_arr_flat[idx_b2])[0,0]
-						#TODO path
-						border_connections[idx_p].append(idx_b3)
-						border_connections[idx_b3].append(idx_p)
-					idx_b2+=1
-
-	return border_connections, border_connections_paths
 
 
 #Open txt file and read in the points
@@ -323,107 +174,265 @@ def clean_points_connections(points_coords_in,points_type_in,points_connections_
 	return points_coords_out, points_type_out, points_connections_out
 
 
-#Plot the main image, then connections, then points
-def draw_full_figure(image_in):
-	global points_coordinates
-	global points_type
-	global points_connections
-	global selected_point_idx
-	plt.imshow(image_in)
-	for idx in range(len(points_coordinates)):
-		for idx2 in points_connections[idx]:
-			if points_type[idx]!=2 and points_type[idx2]!=2:
-				x_points=[points_coordinates[idx][0],points_coordinates[idx2][0]]
-				y_points=[points_coordinates[idx][1],points_coordinates[idx2][1]]
-				plt.plot(x_points,y_points,color="blue")
-	for idx in range(len(points_coordinates)):
-		if idx==selected_point_idx[0]:
-			plt.plot([points_coordinates[idx][0]],[points_coordinates[idx][1]],"o",ms=4,color="red",mec="black")
-		elif points_type[idx]==0:
-			plt.plot([points_coordinates[idx][0]],[points_coordinates[idx][1]],"o",ms=4,color="green",mec="black")
-		elif points_type[idx]==1:
-			plt.plot([points_coordinates[idx][0]],[points_coordinates[idx][1]],"o",ms=4,color="black",mec="black")
-
-
-points_coordinates=[]
-points_type=[]		#0 - border, 1 - bulk, 2 - deleted
-points_connections=[]
-def Click_Loop(event):
-	global points_coordinates
-	global points_type
-	global points_connections
-	global selected_point_idx
-	if event.dblclick==True:
-		if event.button==1 and event.xdata!=None and event.ydata!=None:	#Left click
-			new_point_click=[int(event.xdata),int(event.ydata)]
-			near_other_point=False
-			for idx in range(len(points_coordinates)):
-				if abs(points_coordinates[idx][0]-new_point_click[0])<=min_size and abs(points_coordinates[idx][1]-new_point_click[1])<=min_size and points_type[idx]!=2:
-					near_other_point=True
-					break
-			if near_other_point==False:
-				convergence_reached,new_point_border=pin_click_to_border(new_point_click,padded_pixels,padded_width,padded_height)
-				if convergence_reached:
-					if len(points_coordinates)==0:
-						points_coordinates=[new_point_border]
-						points_type=[0]
-						points_connections=[[]]
-						selected_point_idx[0]=0
-					else:
-						points_coordinates.append(new_point_border)
-						points_type.append(0)
-						points_connections.append([])
-						selected_point_idx[1]=selected_point_idx[0]
-						selected_point_idx[0]=len(points_coordinates)-1
-				else:
-					if not pixel_is_background(padded_pixels[new_point_click[0],new_point_click[1]]):
-						if len(points_coordinates)==0:
-							points_coordinates=[new_point_click]
-							points_type=[1]
-							points_connections=[[]]
-							selected_point_idx[0]=0
-							selected_point_idx=0
-						else:
-							points_coordinates.append(new_point_click)
-							points_type.append(1)
-							points_connections.append([])
-							selected_point_idx[1]=selected_point_idx[0]
-							selected_point_idx[0]=len(points_coordinates)-1
+#Parse the read-in points and connections, remove illegal and reorder index
+def check_read_in(points_coordinates_read,points_type_read,points_connections_read,points_idx_read,border_pixels):
+	points_coordinates=[]
+	points_type=[]
+	points_connections=[]
+	if len(points_idx_read)>0:
+		read_to_old=[0 for idx in range(max(points_idx_read)+1)]
+	old_to_new=[]
+	for idx in range(len(points_coordinates_read)):
+		read_to_old[points_idx_read[idx]]=idx
+		old_to_new.append(None)
+		idx_x=points_coordinates_read[idx][0]
+		idx_y=points_coordinates_read[idx][1]
+		near_point,idx_near=pixel_near_point(points_coordinates_read[idx][0], points_coordinates_read[idx][1], points_coordinates, points_type)
+		if points_type_read[idx]==0:
+			if border_pixels[idx_x,idx_y]!=0 and not near_point:
+				points_coordinates.append(points_coordinates_read[idx])
+				points_type.append(0)
+				points_connections.append([])
+				old_to_new[-1]=len(points_coordinates)-1
+		elif points_type_read[idx]==1:
+			if not pixel_is_background(padded_pixels[idx_x,idx_y]) and not near_point:
+				points_coordinates.append(points_coordinates_read[idx])
+				points_type.append(1)
+				points_connections.append([])
+				old_to_new[-1]=len(points_coordinates)-1
+	for idx in range(len(points_connections_read)):
+		idx1=old_to_new[read_to_old[points_connections_read[idx][0]]]
+		idx2=old_to_new[read_to_old[points_connections_read[idx][1]]]
+		if idx1!=None and idx2!=None:
+			if idx1>idx2:
+				points_connections[idx2].append(idx1)
 			else:
-				if selected_point_idx[0]<selected_point_idx[1]:
-					if selected_point_idx[1] not in points_connections[selected_point_idx[0]]:
-						points_connections[selected_point_idx[0]].append(selected_point_idx[1])			
-				else:
-					if selected_point_idx[0] not in points_connections[selected_point_idx[1]]:
-						points_connections[selected_point_idx[1]].append(selected_point_idx[0])
-				selected_point_idx[0]=selected_point_idx[1]
-				selected_point_idx[1]=None
-		if event.button==3 and event.xdata!=None and event.ydata!=None:	#Right click
-			new_point_click=[int(event.xdata),int(event.ydata)]
-			for idx in range(len(points_coordinates)-1,-1,-1):
-				if abs(points_coordinates[idx][0]-new_point_click[0])<=min_size and abs(points_coordinates[idx][1]-new_point_click[1])<=min_size:
-					points_type[idx]=2
-					selected_point_idx=[None,None]
+				points_connections[idx1].append(idx2)
+	return points_coordinates,points_type,points_connections
 
-	if event.dblclick==False:
-		if event.button==1 and event.xdata!=None and event.ydata!=None:	#Left click
-			new_point_click=[int(event.xdata),int(event.ydata)]
-			near_other_point=False
-			for idx in range(len(points_coordinates)):
-				if abs(points_coordinates[idx][0]-new_point_click[0])<=min_size and abs(points_coordinates[idx][1]-new_point_click[1])<=min_size and points_type[idx]!=2:
-					near_other_point=True
-					selected_point_idx[1]=selected_point_idx[0]
-					selected_point_idx[0]=idx
-					break
-	if selected_point_idx[0]!=None:
-		selected_points_coordinates=points_coordinates[selected_point_idx[0]]
+
+#Draw line between two points, check if inside image TODO - can be refactored for speed if needed
+def bresenham_bounded(x0,y0,x1,y1,arr2d):
+	limx=len(arr2d[:,0])
+	limy=len(arr2d[0,:])
+	if x0==x1:  #Vertical
+		if x0>=0 and x0<limx:
+			if y0>y1:
+				y2=y0
+				y0=y1
+				y1=y2
+			for idx_y in range(max(y0,0),min(y1+1,limy)):
+				arr2d[x0,idx_y]+=1
+	elif abs(x0-x1)>abs(y0-y1):  #gradient below 1
+		if x0>x1:  #Swap points if x0>x1
+			x2=x0
+			y2=y0
+			x0=x1
+			y0=y1
+			x1=x2
+			y1=y2
+		deltay=y1-y0
+		deltax=x1-x0
+		deltaerr=abs(deltay/deltax)
+		signerr=1
+		if deltay/deltax<0.0:
+			signerr=-1
+		error=0.0
+		idx_y=y0
+		for idx_x in range(max(x0,0),min(x1+1,limx)):
+			if idx_y>=0 and idx_y<limy:
+				arr2d[idx_x,idx_y]+=1
+			error+=deltaerr
+			if error>=0.5:
+				idx_y+=signerr
+				error-=1.0
+	else:  #gradient above 1
+		if y0>y1:  #Swap points if y0>y1
+			x2=x0
+			y2=y0
+			x0=x1
+			y0=y1
+			x1=x2
+			y1=y2
+		deltay=y1-y0
+		deltax=x1-x0
+		deltaerr=abs(deltax/deltay)
+		signerr=1
+		if deltax/deltay<0.0:
+			signerr=-1
+		error=0.0
+		idx_x=x0
+		for idx_y in range(max(y0,0),min(y1+1,limy)):
+			if idx_x>=0 and idx_x<limx:
+				arr2d[idx_x,idx_y]+=1
+			error+=deltaerr
+			if error>=0.5:
+				idx_x+=signerr
+				error-=1.0
+	return arr2d
+
+
+#Break image into pieces: each piece bounded by border/connections
+#Number pieces, find average color of each piece
+def collect_pieces(pix_arr,border_arr):
+	checked_arr=np.copy(border_arr)
+	piece_arr=np.zeros(np.shape(border_arr),dtype='int32')
+	num_pieces=0
+	piece_colors_all=[]
+	size_of_piece=[]
+	for idx_x in range(1,len(checked_arr[:,0])-1):
+		for idx_y in range(1,len(checked_arr[0,:])-1):
+			if checked_arr[idx_x,idx_y]==0:  #New piece found
+				size_of_piece.append(1)
+				num_pieces+=1
+				left_to_check=[]
+				checked_arr[idx_x,idx_y]=1
+				piece_arr[idx_x,idx_y]=num_pieces
+				piece_color=[pix_arr[idx_x,idx_y][0],pix_arr[idx_x,idx_y][1],pix_arr[idx_x,idx_y][2]]
+				#if checked_arr[idx_x-1,idx_y-1]==0:
+				#	left_to_check.append([idx_x-1,idx_y-1])
+				#	checked_arr[idx_x-1,idx_y-1]=1
+				#	piece_color[0]+=pix_arr[idx_x-1,idx_y-1][0]
+				#	piece_color[1]+=pix_arr[idx_x-1,idx_y-1][1]
+				#	piece_color[2]+=pix_arr[idx_x-1,idx_y-1][2]
+				#	piece_arr[idx_x-1,idx_y-1]=num_pieces
+				#	size_of_piece[-1]+=1
+				if checked_arr[idx_x-1,idx_y]==0:
+					left_to_check.append([idx_x-1,idx_y])
+					checked_arr[idx_x-1,idx_y]=1
+					piece_color[0]+=pix_arr[idx_x-1,idx_y][0]
+					piece_color[1]+=pix_arr[idx_x-1,idx_y][1]
+					piece_color[2]+=pix_arr[idx_x-1,idx_y][2]
+					piece_arr[idx_x-1,idx_y]=num_pieces
+					size_of_piece[-1]+=1
+				#if checked_arr[idx_x-1,idx_y+1]==0:
+				#	left_to_check.append([idx_x-1,idx_y+1])
+				#	checked_arr[idx_x-1,idx_y+1]=1
+				#	piece_color[0]+=pix_arr[idx_x-1,idx_y+1][0]
+				#	piece_color[1]+=pix_arr[idx_x-1,idx_y+1][1]
+				#	piece_color[2]+=pix_arr[idx_x-1,idx_y+1][2]
+				#	piece_arr[idx_x-1,idx_y+1]=num_pieces
+				#	size_of_piece[-1]+=1
+				if checked_arr[idx_x,idx_y-1]==0:
+					left_to_check.append([idx_x,idx_y-1])
+					checked_arr[idx_x,idx_y-1]=1
+					piece_color[0]+=pix_arr[idx_x,idx_y-1][0]
+					piece_color[1]+=pix_arr[idx_x,idx_y-1][1]
+					piece_color[2]+=pix_arr[idx_x,idx_y-1][2]
+					piece_arr[idx_x,idx_y-1]=num_pieces
+					size_of_piece[-1]+=1
+				if checked_arr[idx_x,idx_y+1]==0:
+					left_to_check.append([idx_x,idx_y+1])
+					checked_arr[idx_x,idx_y+1]=1
+					piece_color[0]+=pix_arr[idx_x,idx_y+1][0]
+					piece_color[1]+=pix_arr[idx_x,idx_y+1][1]
+					piece_color[2]+=pix_arr[idx_x,idx_y+1][2]
+					piece_arr[idx_x,idx_y+1]=num_pieces
+					size_of_piece[-1]+=1
+				#if checked_arr[idx_x+1,idx_y-1]==0:
+				#	left_to_check.append([idx_x+1,idx_y-1])
+				#	checked_arr[idx_x+1,idx_y-1]=1
+				#	piece_color[0]+=pix_arr[idx_x+1,idx_y-1][0]
+				#	piece_color[1]+=pix_arr[idx_x+1,idx_y-1][1]
+				#	piece_color[2]+=pix_arr[idx_x+1,idx_y-1][2]
+				#	piece_arr[idx_x+1,idx_y-1]=num_pieces
+				#	size_of_piece[-1]+=1
+				if checked_arr[idx_x+1,idx_y]==0:
+					left_to_check.append([idx_x+1,idx_y])
+					checked_arr[idx_x+1,idx_y]=1
+					piece_color[0]+=pix_arr[idx_x+1,idx_y][0]
+					piece_color[1]+=pix_arr[idx_x+1,idx_y][1]
+					piece_color[2]+=pix_arr[idx_x+1,idx_y][2]
+					piece_arr[idx_x+1,idx_y]=num_pieces
+					size_of_piece[-1]+=1
+				#if checked_arr[idx_x+1,idx_y+1]==0:
+				#	left_to_check.append([idx_x+1,idx_y+1])
+				#	checked_arr[idx_x+1,idx_y+1]=1
+				#	piece_color[0]+=pix_arr[idx_x+1,idx_y+1][0]
+				#	piece_color[1]+=pix_arr[idx_x+1,idx_y+1][1]
+				#	piece_color[2]+=pix_arr[idx_x+1,idx_y+1][2]
+				#	piece_arr[idx_x+1,idx_y+1]=num_pieces
+				#	size_of_piece[-1]+=1
+				while len(left_to_check)>0:
+					idx_x2=left_to_check[-1][0]
+					idx_y2=left_to_check[-1][1]
+					left_to_check=left_to_check[:-1]
+					checked_arr[idx_x2,idx_y2]=1
+					piece_color[0]+=pix_arr[idx_x2,idx_y2][0]
+					piece_color[1]+=pix_arr[idx_x2,idx_y2][1]
+					piece_color[2]+=pix_arr[idx_x2,idx_y2][2]
+					piece_arr[idx_x2,idx_y2]=num_pieces
+					size_of_piece[-1]+=1
+					#if checked_arr[idx_x2-1,idx_y2-1]==0:
+					#	left_to_check.append([idx_x2-1,idx_y2-1])
+					#	checked_arr[idx_x2-1,idx_y2-1]=1
+					#	piece_color[0]+=pix_arr[idx_x2-1,idx_y2-1][0]
+					#	piece_color[1]+=pix_arr[idx_x2-1,idx_y2-1][1]
+					#	piece_color[2]+=pix_arr[idx_x2-1,idx_y2-1][2]
+					#	piece_arr[idx_x2-1,idx_y2-1]=num_pieces
+					#	size_of_piece[-1]+=1
+					if checked_arr[idx_x2-1,idx_y2]==0:
+						left_to_check.append([idx_x2-1,idx_y2])
+						checked_arr[idx_x2-1,idx_y2]=1
+						piece_color[0]+=pix_arr[idx_x2-1,idx_y2][0]
+						piece_color[1]+=pix_arr[idx_x2-1,idx_y2][1]
+						piece_color[2]+=pix_arr[idx_x2-1,idx_y2][2]
+						piece_arr[idx_x2-1,idx_y2]=num_pieces
+						size_of_piece[-1]+=1
+					#if checked_arr[idx_x2-1,idx_y2+1]==0:
+					#	left_to_check.append([idx_x2-1,idx_y2+1])
+					#	checked_arr[idx_x2-1,idx_y2+1]=1
+					#	piece_color[0]+=pix_arr[idx_x2-1,idx_y2+1][0]
+					#	piece_color[1]+=pix_arr[idx_x2-1,idx_y2+1][1]
+					#	piece_color[2]+=pix_arr[idx_x2-1,idx_y2+1][2]
+					#	piece_arr[idx_x2-1,idx_y2+1]=num_pieces
+					#	size_of_piece[-1]+=1
+					if checked_arr[idx_x2,idx_y2-1]==0:
+						left_to_check.append([idx_x2,idx_y2-1])
+						checked_arr[idx_x2,idx_y2-1]=1
+						piece_color[0]+=pix_arr[idx_x2,idx_y2-1][0]
+						piece_color[1]+=pix_arr[idx_x2,idx_y2-1][1]
+						piece_color[2]+=pix_arr[idx_x2,idx_y2-1][2]
+						piece_arr[idx_x2,idx_y2-1]=num_pieces
+						size_of_piece[-1]+=1
+					if checked_arr[idx_x2,idx_y2+1]==0:
+						left_to_check.append([idx_x2,idx_y2+1])
+						checked_arr[idx_x2,idx_y2+1]=1
+						piece_color[0]+=pix_arr[idx_x2,idx_y2+1][0]
+						piece_color[1]+=pix_arr[idx_x2,idx_y2+1][1]
+						piece_color[2]+=pix_arr[idx_x2,idx_y2+1][2]
+						piece_arr[idx_x2,idx_y2+1]=num_pieces
+						size_of_piece[-1]+=1
+					#if checked_arr[idx_x2+1,idx_y2-1]==0:
+					#	left_to_check.append([idx_x2+1,idx_y2-1])
+					#	checked_arr[idx_x2+1,idx_y2-1]=1
+					#	piece_color[0]+=pix_arr[idx_x2+1,idx_y2-1][0]
+					#	piece_color[1]+=pix_arr[idx_x2+1,idx_y2-1][1]
+					#	piece_color[2]+=pix_arr[idx_x2+1,idx_y2-1][2]
+					#	piece_arr[idx_x2+1,idx_y2-1]=num_pieces
+					#	size_of_piece[-1]+=1
+					if checked_arr[idx_x2+1,idx_y2]==0:
+						left_to_check.append([idx_x2+1,idx_y2])
+						checked_arr[idx_x2+1,idx_y2]=1
+						piece_color[0]+=pix_arr[idx_x2+1,idx_y2][0]
+						piece_color[1]+=pix_arr[idx_x2+1,idx_y2][1]
+						piece_color[2]+=pix_arr[idx_x2+1,idx_y2][2]
+						piece_arr[idx_x2+1,idx_y2]=num_pieces
+						size_of_piece[-1]+=1
+					#if checked_arr[idx_x2+1,idx_y2+1]==0:
+					#	left_to_check.append([idx_x2+1,idx_y2+1])
+					#	checked_arr[idx_x2+1,idx_y2+1]=1
+					#	piece_color[0]+=pix_arr[idx_x2+1,idx_y2+1][0]
+					#	piece_color[1]+=pix_arr[idx_x2+1,idx_y2+1][1]
+					#	piece_color[2]+=pix_arr[idx_x2+1,idx_y2+1][2]
+					#	piece_arr[idx_x2+1,idx_y2+1]=num_pieces
+					#	size_of_piece[-1]+=1
+				piece_colors_all.append((int(piece_color[0]/size_of_piece[-1]),int(piece_color[1]/size_of_piece[-1]),int(piece_color[2]/size_of_piece[-1])))
+	return piece_arr,piece_colors_all,size_of_piece
 					
-	print(event.dblclick,event.button,event.x,event.y,event.xdata,event.ydata,selected_point_idx)
-	plt.clf()
-	draw_full_figure(padded_image)
-	plt.draw()
 
 
+#Find .png files with name made of digits only
 def file_is_target(infilename):
 	is_target=False
 	valid_characters=['0','1','2','3','4','5','6','7','8','9']
@@ -438,6 +447,7 @@ def file_is_target(infilename):
 
 if __name__ == '__main__':
 	directory_path=dirname(realpath(__file__))
+	directory_files=[f for f in listdir(directory_path) if isfile(join(directory_path, f))]
 	target_files=[f for f in listdir(directory_path) if isfile(join(directory_path, f)) and file_is_target(f)]
 	if len(target_files)==0:
 		print("No files found!")
@@ -457,7 +467,8 @@ if __name__ == '__main__':
 		final_image=Image.new('RGBA',(final_width,final_height),(0, 0, 0, 0))
 		final_pixels=final_image.load()
 		border_pixels_all=np.zeros((final_width,final_height),dtype='int32')
-		border_list_all=[]
+		averaged_image=Image.new('RGBA',(final_width,final_height),(0, 0, 0, 0))
+		averaged_pixels=averaged_image.load()
 
 		for im_file in target_files:
 			print(im_file)
@@ -474,17 +485,53 @@ if __name__ == '__main__':
 						final_pixels[idx_x+1,idx_y+1]=raw_pixels[idx_x,idx_y]
 
 			#Set up border
-			border_list,border_pixels=border_to_list(padded_pixels,padded_width,padded_height)
-			border_list_all.append(border_list)
-			border_pixels_all[:len(border_pixels[:,0]),:len(border_pixels[0,:])]+=border_pixels[:,:]
+			for idx_x in range(1,padded_width-1):
+				for idx_y in range(1,padded_height-1):
+					if pixel_is_edge(padded_pixels,idx_x,idx_y,padded_width,padded_height):
+						border_pixels_all[idx_x,idx_y]=1
+
+			#Read in previous points and connections
+			filename_base=im_file[:-4]
+			if filename_base+'.txt' in directory_files:
+				points_coordinates_read,points_type_read,points_connections_read,points_idx_read=read_in_saved(filename_base)
+
+				#Check over read-in points
+				points_coordinates,points_type,points_connections=check_read_in(points_coordinates_read,points_type_read,points_connections_read, points_idx_read,border_pixels_all)
+				#for idx in range(len(points_coordinates)):
+				#	border_pixels_all[points_coordinates[idx][0],points_coordinates[idx][1]]+=1
+				for idx in range(len(points_connections)):
+					for idx2 in points_connections[idx]:
+						border_pixels_all=bresenham_bounded(points_coordinates[idx][0], points_coordinates[idx][1], points_coordinates[idx2][0], points_coordinates[idx2][1],border_pixels_all)
+
 		for idx_x in range(final_width):
 			for idx_y in range(final_height):
+				if pixel_is_background(final_pixels[idx_x,idx_y]):
+					border_pixels_all[idx_x,idx_y]=1
 				if border_pixels_all[idx_x,idx_y]!=0:
 					final_pixels[idx_x,idx_y]=border_color
+					averaged_pixels[idx_x,idx_y]=border_color
+		piece_pixels,piece_colors,piece_sizes=collect_pieces(final_pixels,border_pixels_all)
+		for idx_x in range(final_width):
+			for idx_y in range(final_height):
+				piece_num=piece_pixels[idx_x,idx_y]
+				if piece_num!=0:
+					if piece_sizes[piece_num-1]>=minimum_piece_size:
+						averaged_pixels[idx_x,idx_y]=piece_colors[piece_num-1]
+					else:
+						averaged_pixels[idx_x,idx_y]=border_color
+		num_full_pieces=0
+		for sz in piece_sizes:
+			if sz>=minimum_piece_size:
+				num_full_pieces+=1
+		print("Number of pieces: ",num_full_pieces)
 			
 		fig1=plt.figure()
 		ax1=fig1.gca()
 		plt.imshow(final_image)
+
+		fig2=plt.figure()
+		ax2=fig2.gca()
+		plt.imshow(averaged_image)
 		plt.show()
 
 
