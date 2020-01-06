@@ -1,0 +1,4 @@
+Points
+Number | Type | Coordinates
+
+Connections

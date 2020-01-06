@@ -7,11 +7,11 @@ point      - node on a border or bulk pixel, which are linked together to create
 
 """
 
-filename_base='1'
+filename_base='39'
 max_size=15 #pixels
 min_size=5
 max_connections=4
-border_color=(255,149,133)
+border_color=(0,0,0)
 
 import numpy as np
 from PIL import Image
@@ -71,44 +71,44 @@ def border_to_array(input_pixels,input_width,input_height):
 
 #Search around the coordinates of a click for a border pixel
 #If pixel found, return convergence_reached=True and the pixel coordinates
-def pin_click_to_border(new_point_click,input_pixels,input_width,input_height,border_pixels):
+def pin_click_to_border(point_click,input_pixels,input_width,input_height,border_pixels):
 	new_point=[0,0]
 
 	#Look for border near click
 	current_distance=0
 	convergence_reached=False
 	while convergence_reached==False and current_distance<=min_size:
-		idx_y=new_point_click[1]-current_distance
+		idx_y=point_click[1]-current_distance
 		if idx_y>=0:
-			idx_x=max([0,new_point_click[0]-current_distance+1])
-			idx_x_limit=min([input_width,new_point_click[0]+current_distance+1])
+			idx_x=max([0,point_click[0]-current_distance+1])
+			idx_x_limit=min([input_width,point_click[0]+current_distance+1])
 			while convergence_reached==False and idx_x<idx_x_limit:
 				if border_pixels[idx_x,idx_y]!=0:
 					convergence_reached=True
 					new_point=[idx_x,idx_y]
 				idx_x+=1
-		idx_x=new_point_click[0]+current_distance
+		idx_x=point_click[0]+current_distance
 		if idx_x<input_width:
-			idx_y=max([0,new_point_click[1]-current_distance+1])
-			idx_y_limit=min([input_height,new_point_click[1]+current_distance+1])
+			idx_y=max([0,point_click[1]-current_distance+1])
+			idx_y_limit=min([input_height,point_click[1]+current_distance+1])
 			while convergence_reached==False and idx_y<idx_y_limit:
 				if border_pixels[idx_x,idx_y]!=0:
 					convergence_reached=True
 					new_point=[idx_x,idx_y]
 				idx_y+=1
-		idx_y=new_point_click[1]+current_distance
+		idx_y=point_click[1]+current_distance
 		if idx_y<input_height:
-			idx_x=min([input_width-1,new_point_click[0]+current_distance-1])
-			idx_x_limit=max([0,new_point_click[0]-current_distance-1])
+			idx_x=min([input_width-1,point_click[0]+current_distance-1])
+			idx_x_limit=max([0,point_click[0]-current_distance-1])
 			while convergence_reached==False and idx_x>idx_x_limit:
 				if border_pixels[idx_x,idx_y]!=0:
 					convergence_reached=True
 					new_point=[idx_x,idx_y]
 				idx_x-=1
-		idx_x=new_point_click[0]-current_distance
+		idx_x=point_click[0]-current_distance
 		if idx_x>=0:
-			idx_y=min([input_height-1,new_point_click[1]+current_distance-1])
-			idx_y_limit=max([0,new_point_click[1]-current_distance-1])
+			idx_y=min([input_height-1,point_click[1]+current_distance-1])
+			idx_y_limit=max([0,point_click[1]-current_distance-1])
 			while convergence_reached==False and idx_y>idx_y_limit:
 				if border_pixels[idx_x,idx_y]!=0:
 					convergence_reached=True
@@ -240,67 +240,73 @@ points_coordinates=[]
 points_type=[]		#0 - border, 1 - bulk, 2 - deleted
 points_connections=[]
 border_pixels=[]
+old_point_click=[0,0]
 def Click_Loop(event):
 	global points_coordinates
 	global points_type
 	global points_connections
 	global selected_point_idx
 	global border_pixels
-	if event.dblclick==True:
-		if event.button==1 and event.xdata!=None and event.ydata!=None:	#Left click
-			new_point_click=[int(event.xdata),int(event.ydata)]
+	global old_point_click
+	new_point_click=[0,0]
+	if event.dblclick==True: #Double click
+		new_point_click[0]=int(event.xdata)#TODO
+		new_point_click[1]=int(event.ydata)
+		if event.button==1 and old_point_click[0]!=None and old_point_click[1]!=None:	#Double left click (not outside plot)
+
 			near_other_point=False
-			for idx in range(len(points_coordinates)):
-				if abs(points_coordinates[idx][0]-new_point_click[0])<=min_size and abs(points_coordinates[idx][1]-new_point_click[1])<=min_size and points_type[idx]!=2:
+			for idx in range(len(points_coordinates)): #Check if near other point
+				if abs(points_coordinates[idx][0]-old_point_click[0])<=min_size and abs(points_coordinates[idx][1]-old_point_click[1])<=min_size and points_type[idx]!=2:
 					near_other_point=True
 					break
-			if near_other_point==False:
-				convergence_reached,new_point_border=pin_click_to_border(new_point_click,padded_pixels,padded_width,padded_height,border_pixels)
-				if convergence_reached:
-					if len(points_coordinates)==0:
+			if not near_other_point: #Double left click, not near other point
+				convergence_reached,new_point_border=pin_click_to_border(old_point_click,padded_pixels,padded_width,padded_height,border_pixels)
+				if convergence_reached: #Point is near border
+					if len(points_coordinates)==0: #No points, need to create new list
 						points_coordinates=[new_point_border]
 						points_type=[0]
 						points_connections=[[]]
 						selected_point_idx[0]=0
-					else:
+					else: #Some points exist, need to update list
 						points_coordinates.append(new_point_border)
 						points_type.append(0)
 						points_connections.append([])
 						selected_point_idx[1]=selected_point_idx[0]
 						selected_point_idx[0]=len(points_coordinates)-1
-				else:
-					if not pixel_is_background(padded_pixels[new_point_click[0],new_point_click[1]]):
+				else: #Double right click, not near border
+					if not pixel_is_background(padded_pixels[old_point_click[0],old_point_click[1]]):
 						if len(points_coordinates)==0:
-							points_coordinates=[new_point_click]
+							points_coordinates=[old_point_click[:]]
 							points_type=[1]
 							points_connections=[[]]
 							selected_point_idx[0]=0
-							selected_point_idx=0
 						else:
-							points_coordinates.append(new_point_click)
+							points_coordinates.append(old_point_click[:])
 							points_type.append(1)
 							points_connections.append([])
 							selected_point_idx[1]=selected_point_idx[0]
 							selected_point_idx[0]=len(points_coordinates)-1
-			else:
-				if selected_point_idx[0]<selected_point_idx[1]:
-					if selected_point_idx[1] not in points_connections[selected_point_idx[0]]:
-						points_connections[selected_point_idx[0]].append(selected_point_idx[1])			
-				else:
-					if selected_point_idx[0] not in points_connections[selected_point_idx[1]]:
-						points_connections[selected_point_idx[1]].append(selected_point_idx[0])
+			else: #Left click near existing point - select point
+				if selected_point_idx[0]!=None and selected_point_idx[1]!=None:#TODO
+					if selected_point_idx[0]<selected_point_idx[1]:
+						if selected_point_idx[1] not in points_connections[selected_point_idx[0]]:
+							points_connections[selected_point_idx[0]].append(selected_point_idx[1])			
+					else:
+						if selected_point_idx[0] not in points_connections[selected_point_idx[1]]:
+							points_connections[selected_point_idx[1]].append(selected_point_idx[0])
 				selected_point_idx[0]=selected_point_idx[1]
 				selected_point_idx[1]=None
 		if event.button==3 and event.xdata!=None and event.ydata!=None:	#Right click
-			new_point_click=[int(event.xdata),int(event.ydata)]
-			for idx in range(len(points_coordinates)-1,-1,-1):
-				if abs(points_coordinates[idx][0]-new_point_click[0])<=min_size and abs(points_coordinates[idx][1]-new_point_click[1])<=min_size:
+			for idx in range(len(points_coordinates)-1,-1,-1): #Go through points and delete any nearby
+				if abs(points_coordinates[idx][0]-old_point_click[0])<=min_size and abs(points_coordinates[idx][1]-old_point_click[1])<=min_size:
 					points_type[idx]=2
 					selected_point_idx=[None,None]
 
-	if event.dblclick==False:
-		if event.button==1 and event.xdata!=None and event.ydata!=None:	#Left click
-			new_point_click=[int(event.xdata),int(event.ydata)]
+	if event.dblclick==False: #Single click
+		new_point_click[0]=int(event.xdata)
+		new_point_click[1]=int(event.ydata)
+		if event.button==1 and new_point_click[0]!=None and new_point_click[1]!=None:	#Left click
+
 			near_other_point=False
 			for idx in range(len(points_coordinates)):
 				if abs(points_coordinates[idx][0]-new_point_click[0])<=min_size and abs(points_coordinates[idx][1]-new_point_click[1])<=min_size and points_type[idx]!=2:
@@ -310,8 +316,11 @@ def Click_Loop(event):
 					break
 	if selected_point_idx[0]!=None:
 		selected_points_coordinates=points_coordinates[selected_point_idx[0]]
+
+	print(event.dblclick,event.button,event.x,event.y,event.xdata,event.ydata,old_point_click,selected_point_idx)
+	old_point_click[0]=new_point_click[0] #When double clicking, use the first click's coords - otherwise messes up due to some sort of matplotlib error(?)
+	old_point_click[1]=new_point_click[1]
 					
-	print(event.dblclick,event.button,event.x,event.y,event.xdata,event.ydata,selected_point_idx)
 	plt.clf()
 	draw_full_figure(padded_image)
 	plt.draw()

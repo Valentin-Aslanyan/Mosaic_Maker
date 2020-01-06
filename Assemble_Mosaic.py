@@ -3,14 +3,23 @@
 """
 
 
-max_size=15 #pixels
-min_size=5
+min_size=5 #pixels
 border_color=(0,0,0)
 minimum_piece_size=5
+piece_font_size=12
+piece_padding=3
+reference_line_length=100 #pixels wide
+paper_padding=10 #Pixels on each side when outputting to A4 paper
+
+inch_to_mm=25.4
+paper_size=[297.0,210.0] #mm
+px_per_mm=3.0
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import matplotlib.pyplot as plt
+from PyPDF2 import PdfFileMerger
+from copy import deepcopy
 from os import listdir
 from os.path import isfile, join, realpath, dirname
 
@@ -273,163 +282,303 @@ def bresenham_bounded(x0,y0,x1,y1,arr2d):
 
 
 #Break image into pieces: each piece bounded by border/connections
-#Number pieces, find average color of each piece
+#Number pieces, find average color of each piece, bounding box for each piece
 def collect_pieces(pix_arr,border_arr):
 	checked_arr=np.copy(border_arr)
 	piece_arr=np.zeros(np.shape(border_arr),dtype='int32')
+	left_to_check=np.zeros(((len(checked_arr[:,0])-2)*(len(checked_arr[0,:])-2),2),dtype='int32')
 	num_pieces=0
 	piece_colors_all=[]
 	size_of_piece=[]
+	extent_of_piece=[]
 	for idx_x in range(1,len(checked_arr[:,0])-1):
 		for idx_y in range(1,len(checked_arr[0,:])-1):
 			if checked_arr[idx_x,idx_y]==0:  #New piece found
 				size_of_piece.append(1)
+				extent_of_piece.append([idx_x,idx_x,idx_y,idx_y])  #min_x,max_x,min_y,max_y
 				num_pieces+=1
-				left_to_check=[]
+				num_left_to_check=0
 				checked_arr[idx_x,idx_y]=1
 				piece_arr[idx_x,idx_y]=num_pieces
 				piece_color=[pix_arr[idx_x,idx_y][0],pix_arr[idx_x,idx_y][1],pix_arr[idx_x,idx_y][2]]
-				#if checked_arr[idx_x-1,idx_y-1]==0:
-				#	left_to_check.append([idx_x-1,idx_y-1])
-				#	checked_arr[idx_x-1,idx_y-1]=1
-				#	piece_color[0]+=pix_arr[idx_x-1,idx_y-1][0]
-				#	piece_color[1]+=pix_arr[idx_x-1,idx_y-1][1]
-				#	piece_color[2]+=pix_arr[idx_x-1,idx_y-1][2]
-				#	piece_arr[idx_x-1,idx_y-1]=num_pieces
-				#	size_of_piece[-1]+=1
 				if checked_arr[idx_x-1,idx_y]==0:
-					left_to_check.append([idx_x-1,idx_y])
+					left_to_check[num_left_to_check,0]=idx_x-1
+					left_to_check[num_left_to_check,1]=idx_y
+					num_left_to_check+=1
 					checked_arr[idx_x-1,idx_y]=1
 					piece_color[0]+=pix_arr[idx_x-1,idx_y][0]
 					piece_color[1]+=pix_arr[idx_x-1,idx_y][1]
 					piece_color[2]+=pix_arr[idx_x-1,idx_y][2]
 					piece_arr[idx_x-1,idx_y]=num_pieces
 					size_of_piece[-1]+=1
-				#if checked_arr[idx_x-1,idx_y+1]==0:
-				#	left_to_check.append([idx_x-1,idx_y+1])
-				#	checked_arr[idx_x-1,idx_y+1]=1
-				#	piece_color[0]+=pix_arr[idx_x-1,idx_y+1][0]
-				#	piece_color[1]+=pix_arr[idx_x-1,idx_y+1][1]
-				#	piece_color[2]+=pix_arr[idx_x-1,idx_y+1][2]
-				#	piece_arr[idx_x-1,idx_y+1]=num_pieces
-				#	size_of_piece[-1]+=1
+					extent_of_piece[-1][0]=idx_x-1
 				if checked_arr[idx_x,idx_y-1]==0:
-					left_to_check.append([idx_x,idx_y-1])
+					left_to_check[num_left_to_check,0]=idx_x
+					left_to_check[num_left_to_check,1]=idx_y-1
+					num_left_to_check+=1
 					checked_arr[idx_x,idx_y-1]=1
 					piece_color[0]+=pix_arr[idx_x,idx_y-1][0]
 					piece_color[1]+=pix_arr[idx_x,idx_y-1][1]
 					piece_color[2]+=pix_arr[idx_x,idx_y-1][2]
 					piece_arr[idx_x,idx_y-1]=num_pieces
 					size_of_piece[-1]+=1
+					extent_of_piece[-1][2]=idx_y-1
 				if checked_arr[idx_x,idx_y+1]==0:
-					left_to_check.append([idx_x,idx_y+1])
+					left_to_check[num_left_to_check,0]=idx_x
+					left_to_check[num_left_to_check,1]=idx_y+1
+					num_left_to_check+=1
 					checked_arr[idx_x,idx_y+1]=1
 					piece_color[0]+=pix_arr[idx_x,idx_y+1][0]
 					piece_color[1]+=pix_arr[idx_x,idx_y+1][1]
 					piece_color[2]+=pix_arr[idx_x,idx_y+1][2]
 					piece_arr[idx_x,idx_y+1]=num_pieces
 					size_of_piece[-1]+=1
-				#if checked_arr[idx_x+1,idx_y-1]==0:
-				#	left_to_check.append([idx_x+1,idx_y-1])
-				#	checked_arr[idx_x+1,idx_y-1]=1
-				#	piece_color[0]+=pix_arr[idx_x+1,idx_y-1][0]
-				#	piece_color[1]+=pix_arr[idx_x+1,idx_y-1][1]
-				#	piece_color[2]+=pix_arr[idx_x+1,idx_y-1][2]
-				#	piece_arr[idx_x+1,idx_y-1]=num_pieces
-				#	size_of_piece[-1]+=1
+					extent_of_piece[-1][3]=idx_y+1
 				if checked_arr[idx_x+1,idx_y]==0:
-					left_to_check.append([idx_x+1,idx_y])
+					left_to_check[num_left_to_check,0]=idx_x+1
+					left_to_check[num_left_to_check,1]=idx_y
+					num_left_to_check+=1
 					checked_arr[idx_x+1,idx_y]=1
 					piece_color[0]+=pix_arr[idx_x+1,idx_y][0]
 					piece_color[1]+=pix_arr[idx_x+1,idx_y][1]
 					piece_color[2]+=pix_arr[idx_x+1,idx_y][2]
 					piece_arr[idx_x+1,idx_y]=num_pieces
 					size_of_piece[-1]+=1
-				#if checked_arr[idx_x+1,idx_y+1]==0:
-				#	left_to_check.append([idx_x+1,idx_y+1])
-				#	checked_arr[idx_x+1,idx_y+1]=1
-				#	piece_color[0]+=pix_arr[idx_x+1,idx_y+1][0]
-				#	piece_color[1]+=pix_arr[idx_x+1,idx_y+1][1]
-				#	piece_color[2]+=pix_arr[idx_x+1,idx_y+1][2]
-				#	piece_arr[idx_x+1,idx_y+1]=num_pieces
-				#	size_of_piece[-1]+=1
-				while len(left_to_check)>0:
-					idx_x2=left_to_check[-1][0]
-					idx_y2=left_to_check[-1][1]
-					left_to_check=left_to_check[:-1]
+					extent_of_piece[-1][1]=idx_x+1
+				while num_left_to_check>0:
+					idx_x2=int(left_to_check[num_left_to_check-1,0])
+					idx_y2=int(left_to_check[num_left_to_check-1,1])
+					num_left_to_check-=1
 					checked_arr[idx_x2,idx_y2]=1
 					piece_color[0]+=pix_arr[idx_x2,idx_y2][0]
 					piece_color[1]+=pix_arr[idx_x2,idx_y2][1]
 					piece_color[2]+=pix_arr[idx_x2,idx_y2][2]
 					piece_arr[idx_x2,idx_y2]=num_pieces
 					size_of_piece[-1]+=1
-					#if checked_arr[idx_x2-1,idx_y2-1]==0:
-					#	left_to_check.append([idx_x2-1,idx_y2-1])
-					#	checked_arr[idx_x2-1,idx_y2-1]=1
-					#	piece_color[0]+=pix_arr[idx_x2-1,idx_y2-1][0]
-					#	piece_color[1]+=pix_arr[idx_x2-1,idx_y2-1][1]
-					#	piece_color[2]+=pix_arr[idx_x2-1,idx_y2-1][2]
-					#	piece_arr[idx_x2-1,idx_y2-1]=num_pieces
-					#	size_of_piece[-1]+=1
 					if checked_arr[idx_x2-1,idx_y2]==0:
-						left_to_check.append([idx_x2-1,idx_y2])
+						left_to_check[num_left_to_check,0]=idx_x2-1
+						left_to_check[num_left_to_check,1]=idx_y2
+						num_left_to_check+=1
 						checked_arr[idx_x2-1,idx_y2]=1
 						piece_color[0]+=pix_arr[idx_x2-1,idx_y2][0]
 						piece_color[1]+=pix_arr[idx_x2-1,idx_y2][1]
 						piece_color[2]+=pix_arr[idx_x2-1,idx_y2][2]
 						piece_arr[idx_x2-1,idx_y2]=num_pieces
 						size_of_piece[-1]+=1
-					#if checked_arr[idx_x2-1,idx_y2+1]==0:
-					#	left_to_check.append([idx_x2-1,idx_y2+1])
-					#	checked_arr[idx_x2-1,idx_y2+1]=1
-					#	piece_color[0]+=pix_arr[idx_x2-1,idx_y2+1][0]
-					#	piece_color[1]+=pix_arr[idx_x2-1,idx_y2+1][1]
-					#	piece_color[2]+=pix_arr[idx_x2-1,idx_y2+1][2]
-					#	piece_arr[idx_x2-1,idx_y2+1]=num_pieces
-					#	size_of_piece[-1]+=1
-					if checked_arr[idx_x2,idx_y2-1]==0:
-						left_to_check.append([idx_x2,idx_y2-1])
-						checked_arr[idx_x2,idx_y2-1]=1
-						piece_color[0]+=pix_arr[idx_x2,idx_y2-1][0]
-						piece_color[1]+=pix_arr[idx_x2,idx_y2-1][1]
-						piece_color[2]+=pix_arr[idx_x2,idx_y2-1][2]
-						piece_arr[idx_x2,idx_y2-1]=num_pieces
-						size_of_piece[-1]+=1
-					if checked_arr[idx_x2,idx_y2+1]==0:
-						left_to_check.append([idx_x2,idx_y2+1])
-						checked_arr[idx_x2,idx_y2+1]=1
-						piece_color[0]+=pix_arr[idx_x2,idx_y2+1][0]
-						piece_color[1]+=pix_arr[idx_x2,idx_y2+1][1]
-						piece_color[2]+=pix_arr[idx_x2,idx_y2+1][2]
-						piece_arr[idx_x2,idx_y2+1]=num_pieces
-						size_of_piece[-1]+=1
-					#if checked_arr[idx_x2+1,idx_y2-1]==0:
-					#	left_to_check.append([idx_x2+1,idx_y2-1])
-					#	checked_arr[idx_x2+1,idx_y2-1]=1
-					#	piece_color[0]+=pix_arr[idx_x2+1,idx_y2-1][0]
-					#	piece_color[1]+=pix_arr[idx_x2+1,idx_y2-1][1]
-					#	piece_color[2]+=pix_arr[idx_x2+1,idx_y2-1][2]
-					#	piece_arr[idx_x2+1,idx_y2-1]=num_pieces
-					#	size_of_piece[-1]+=1
+						extent_of_piece[-1][0]=min(idx_x2-1,extent_of_piece[-1][0])
 					if checked_arr[idx_x2+1,idx_y2]==0:
-						left_to_check.append([idx_x2+1,idx_y2])
+						left_to_check[num_left_to_check,0]=idx_x2+1
+						left_to_check[num_left_to_check,1]=idx_y2
+						num_left_to_check+=1
 						checked_arr[idx_x2+1,idx_y2]=1
 						piece_color[0]+=pix_arr[idx_x2+1,idx_y2][0]
 						piece_color[1]+=pix_arr[idx_x2+1,idx_y2][1]
 						piece_color[2]+=pix_arr[idx_x2+1,idx_y2][2]
 						piece_arr[idx_x2+1,idx_y2]=num_pieces
 						size_of_piece[-1]+=1
-					#if checked_arr[idx_x2+1,idx_y2+1]==0:
-					#	left_to_check.append([idx_x2+1,idx_y2+1])
-					#	checked_arr[idx_x2+1,idx_y2+1]=1
-					#	piece_color[0]+=pix_arr[idx_x2+1,idx_y2+1][0]
-					#	piece_color[1]+=pix_arr[idx_x2+1,idx_y2+1][1]
-					#	piece_color[2]+=pix_arr[idx_x2+1,idx_y2+1][2]
-					#	piece_arr[idx_x2+1,idx_y2+1]=num_pieces
-					#	size_of_piece[-1]+=1
+						extent_of_piece[-1][1]=max(idx_x2+1,extent_of_piece[-1][1])
+					if checked_arr[idx_x2,idx_y2-1]==0:
+						left_to_check[num_left_to_check,0]=idx_x2
+						left_to_check[num_left_to_check,1]=idx_y2-1
+						num_left_to_check+=1
+						checked_arr[idx_x2,idx_y2-1]=1
+						piece_color[0]+=pix_arr[idx_x2,idx_y2-1][0]
+						piece_color[1]+=pix_arr[idx_x2,idx_y2-1][1]
+						piece_color[2]+=pix_arr[idx_x2,idx_y2-1][2]
+						piece_arr[idx_x2,idx_y2-1]=num_pieces
+						size_of_piece[-1]+=1
+						extent_of_piece[-1][2]=min(idx_y2-1,extent_of_piece[-1][2])
+					if checked_arr[idx_x2,idx_y2+1]==0:
+						left_to_check[num_left_to_check,0]=idx_x2
+						left_to_check[num_left_to_check,1]=idx_y2+1
+						num_left_to_check+=1
+						checked_arr[idx_x2,idx_y2+1]=1
+						piece_color[0]+=pix_arr[idx_x2,idx_y2+1][0]
+						piece_color[1]+=pix_arr[idx_x2,idx_y2+1][1]
+						piece_color[2]+=pix_arr[idx_x2,idx_y2+1][2]
+						piece_arr[idx_x2,idx_y2+1]=num_pieces
+						size_of_piece[-1]+=1
+						extent_of_piece[-1][3]=max(idx_y2+1,extent_of_piece[-1][3])
 				piece_colors_all.append((int(piece_color[0]/size_of_piece[-1]),int(piece_color[1]/size_of_piece[-1]),int(piece_color[2]/size_of_piece[-1])))
-	return piece_arr,piece_colors_all,size_of_piece
-					
+	return piece_arr,piece_colors_all,size_of_piece,extent_of_piece
+
+
+#
+def rectangles_overlap():
+	...
+
+
+#Each small mosaic piece is bounded by a rectangle, which may overlap with an adjacent rectangle
+#Move bounding boxes of pieces so they don't overlap
+def spread_piece_singlecanvas(piece_extent,limx,limy,num_spacing):
+	new_extent=deepcopy(piece_extent)
+	
+	new_limx=limx*4
+	new_limy=limy*4
+
+	arr_to_sort=np.zeros((len(piece_extent)),dtype='int32')  #Sort by left x edge first, then top y edge
+	for idx in range(len(piece_extent)):
+		arr_to_sort[idx]=piece_extent[idx][0]*(limy+1)+piece_extent[idx][2]
+	sorted_idx=np.argsort(arr_to_sort)
+
+	#px_above_arr=np.outer(np.ones((new_limx)),np.array(range(new_limy)))
+	occupied_px=np.zeros((new_limx,new_limy),dtype='int32')
+	for idx in sorted_idx:
+		piece_width=piece_extent[idx][1]-piece_extent[idx][0]+num_spacing*2
+		piece_height=piece_extent[idx][3]-piece_extent[idx][2]+num_spacing*2
+		anchor=[piece_extent[idx][0],piece_extent[idx][2]] #Top left corner
+		move_piece=True
+		moved_left=False
+		moved_up=False
+		while move_piece:
+			#Extend plot area if piece is poking outside
+			while anchor[0]+piece_width>=new_limx and anchor[1]+piece_height>=new_limy:
+				new_limx+=limx
+				new_limy+=limy
+				occupied_px=np.pad(occupied_px,((0,limx),(0,limy)),'constant',constant_values=(0,0))
+			while anchor[0]+piece_width>=new_limx:
+				new_limx+=limx
+				occupied_px=np.pad(occupied_px,((0,limx),(0,0)),'constant',constant_values=(0,0))					
+			while anchor[1]+piece_height>=new_limy:
+				new_limy+=limy
+				occupied_px=np.pad(occupied_px,((0,0),(0,limy)),'constant',constant_values=(0,0))
+			#Check to move
+			if occupied_px[anchor[0],anchor[1]]!=0:	#Move diagonally down and right if top left corner is in occupied territory
+				anchor[0]=anchor[0]+1
+				anchor[1]=anchor[1]+1
+			else: #Will now attempt to move left (as a priority), then attempt to move up, otherwise stop
+				if not moved_left: 
+					if not moved_up: #Has NOT moved left or up, must check left edge
+						occupation=sum(occupied_px[anchor[0],anchor[1]+1:anchor[1]+1+piece_height])
+						if occupation!=0: #Left edge occupied, must move right
+							anchor[0]=anchor[0]+1
+						else: #Left edge clear, must check top edge
+							occupation=sum(occupied_px[anchor[0]+1:anchor[0]+1+piece_width,anchor[1]])
+							if occupation!=0: #Top edge occupied, must move down
+								anchor[1]=anchor[1]+1
+							else: #Both left and top edges are clear; right and bottom assumed to be clear
+								if anchor[0]>0: #Check left
+									occupation=sum(occupied_px[anchor[0]-1,anchor[1]:anchor[1]+1+piece_height])
+									if occupation==0: #Left clear, move left
+										moved_left=True
+										anchor[0]=anchor[0]-1
+									elif anchor[1]>0: #Check above
+										occupation=sum(occupied_px[anchor[0]:anchor[0]+1+piece_width,anchor[1]-1])
+										if occupation==0: #Above clear, move up
+											moved_up=True
+											anchor[1]=anchor[1]-1
+										else: #top edge is occupied AND left edge is occupied
+											move_piece=False
+									else: #At extreme top of image AND left edge is occupied
+										move_piece=False
+								elif anchor[1]>0: #Check above
+									occupation=sum(occupied_px[anchor[0]:anchor[0]+1+piece_width,anchor[1]-1])
+									if occupation==0: #Above clear, move up
+										moved_up=True
+										anchor[1]=anchor[1]-1
+									else: #top edge is occupied AND at extreme left of image
+										move_piece=False
+								else: #Piece is in top left corner of image
+									move_piece=False
+					else: # moved_up==True, i.e. HAS moved up
+						if anchor[0]>0: #Check left
+							occupation=sum(occupied_px[anchor[0]-1,anchor[1]:anchor[1]+1+piece_height])
+							if occupation==0: #Left clear, move left
+								moved_up=False
+								moved_left=True
+								anchor[0]=anchor[0]-1
+							elif anchor[1]>0: #Check above
+								occupation=sum(occupied_px[anchor[0]:anchor[0]+1+piece_width,anchor[1]-1])
+								if occupation==0: #Above clear, continue moving up
+									anchor[1]=anchor[1]-1
+								else: #top edge is occupied AND left edge is occupied
+									move_piece=False
+							else: #At extreme top of image AND left edge is occupied
+								move_piece=False
+						elif anchor[1]>0: #Check above
+							occupation=sum(occupied_px[anchor[0]:anchor[0]+1+piece_width,anchor[1]-1])
+							if occupation==0: #Above clear, continue moving up
+								anchor[1]=anchor[1]-1
+							else: #top edge is occupied AND at extreme left of image
+								move_piece=False
+						else: #Piece is in top left corner of image
+							move_piece=False
+				else: # moved_left==True, i.e. HAS moved left
+					if anchor[0]>0: #Check left
+						occupation=sum(occupied_px[anchor[0]-1,anchor[1]:anchor[1]+1+piece_height])
+						if occupation==0: #Left clear, continue moving left
+							anchor[0]=anchor[0]-1
+						elif anchor[1]>0: #Check above
+							occupation=sum(occupied_px[anchor[0]:anchor[0]+1+piece_width,anchor[1]-1])
+							if occupation==0: #Above clear, move up
+								moved_up=True
+								moved_left=False
+								anchor[1]=anchor[1]-1
+							else: #top edge is occupied AND left edge is occupied
+								move_piece=False
+						else: #At extreme top of image AND left edge is occupied
+							move_piece=False
+					elif anchor[1]>0: #Check above
+						occupation=sum(occupied_px[anchor[0]:anchor[0]+1+piece_width,anchor[1]-1])
+						if occupation==0: #Above clear, move up
+							moved_up=True
+							moved_left=False
+							anchor[1]=anchor[1]-1
+						else: #top edge is occupied AND at extreme left of image
+							move_piece=False
+					else: #Piece is in top left corner of image
+						move_piece=False
+		#Piece now moved
+		occupied_px[anchor[0]:anchor[0]+1+piece_width,anchor[1]:anchor[1]+1+piece_height]=idx+1
+		new_extent[idx][0]=anchor[0]+num_spacing
+		new_extent[idx][1]=anchor[0]+piece_width-num_spacing
+		new_extent[idx][2]=anchor[1]+num_spacing
+		new_extent[idx][3]=anchor[1]+piece_height-num_spacing
+	new_width=0
+	new_height=0
+	for idx in range(len(new_extent)):
+		new_width=max(new_width,new_extent[idx][1]+num_spacing)
+		new_height=max(new_height,new_extent[idx][3]+num_spacing)
+	return new_extent,new_width,new_height
+
+
+#Move bounding boxes of pieces so they don't overlap
+def spread_piece_multicanvas(piece_extent,limx,limy):
+	num_spacing=2
+	canvas_size=[400,400]
+
+	new_extent=piece_extent.copy()
+
+	arr_to_sort=np.zeros((len(piece_extent)),dtype='int32')  #Sort by left x edge first, then top y edge
+	for idx in range(len(piece_extent)):
+		arr_to_sort[idx]=piece_extent[idx][0]*(limy+1)+piece_extent[idx][2]
+	sorted_idx=np.argsort(arr_to_sort)
+
+	canvas_list=[]
+	canvas_list.append(np.array())
+	idx_can=0
+
+	px_above_arr=np.outer(np.ones((new_limx)),np.array(range(new_limy)))
+	for idx in range(sorted_idx):
+		piece_width=piece_extent[idx][1]-piece_extent[idx][0]+num_spacing*2
+		piece_height=piece_extent[idx][3]-piece_extent[idx][2]+num_spacing*2
+
+
+#Use matplotlib to save a PNG image in a PDF of precise dimension
+def save_scale_PDF(PDF_size,in_image,PDF_name): #PDF_size in inches >.<
+	fig1=plt.figure(figsize=(PDF_size[0],PDF_size[1]))
+	ax1=fig1.gca()
+	plt.imshow(in_image)
+	ax1.get_xaxis().set_ticks([])
+	ax1.get_yaxis().set_ticks([])
+	ax1.axis('off')
+
+	#Fudge the size to make the plot 
+	size_adjust_wd=PDF_size[0]/(ax1.get_window_extent().transformed(fig1.dpi_scale_trans.inverted())).width
+	size_adjust_ht=PDF_size[1]/(ax1.get_window_extent().transformed(fig1.dpi_scale_trans.inverted())).height
+	fig1.set_size_inches(PDF_size[0]*size_adjust_wd,PDF_size[1]*size_adjust_ht)
+
+	plt.savefig(PDF_name+'.pdf', format="pdf", dpi=300,bbox_inches='tight',pad_inches=0.0)
 
 
 #Find .png files with name made of digits only
@@ -466,9 +615,13 @@ if __name__ == '__main__':
 		final_height=max_height+2
 		final_image=Image.new('RGBA',(final_width,final_height),(0, 0, 0, 0))
 		final_pixels=final_image.load()
+		BW_image=Image.new('RGBA',(final_width,final_height),(255, 255, 255, 255))
+		BW_pixels=BW_image.load()
 		border_pixels_all=np.zeros((final_width,final_height),dtype='int32')
 		averaged_image=Image.new('RGBA',(final_width,final_height),(0, 0, 0, 0))
 		averaged_pixels=averaged_image.load()
+		holecheck_image=Image.new('RGB',(max_width,max_height),(255,0,247))
+		holecheck_pixels=holecheck_image.load()
 
 		for im_file in target_files:
 			print(im_file)
@@ -483,6 +636,10 @@ if __name__ == '__main__':
 					padded_pixels[idx_x+1,idx_y+1]=raw_pixels[idx_x,idx_y]
 					if not pixel_is_background(raw_pixels[idx_x,idx_y]):
 						final_pixels[idx_x+1,idx_y+1]=raw_pixels[idx_x,idx_y]
+						if holecheck_pixels[idx_x,idx_y]==(0,0,0):
+							holecheck_pixels[idx_x,idx_y]=(255,255,0)
+						else:
+							holecheck_pixels[idx_x,idx_y]=(0,0,0)
 
 			#Set up border
 			for idx_x in range(1,padded_width-1):
@@ -503,6 +660,8 @@ if __name__ == '__main__':
 					for idx2 in points_connections[idx]:
 						border_pixels_all=bresenham_bounded(points_coordinates[idx][0], points_coordinates[idx][1], points_coordinates[idx2][0], points_coordinates[idx2][1],border_pixels_all)
 
+		holecheck_image.save("Hole_Check.png")
+
 		for idx_x in range(final_width):
 			for idx_y in range(final_height):
 				if pixel_is_background(final_pixels[idx_x,idx_y]):
@@ -510,7 +669,8 @@ if __name__ == '__main__':
 				if border_pixels_all[idx_x,idx_y]!=0:
 					final_pixels[idx_x,idx_y]=border_color
 					averaged_pixels[idx_x,idx_y]=border_color
-		piece_pixels,piece_colors,piece_sizes=collect_pieces(final_pixels,border_pixels_all)
+					BW_pixels[idx_x,idx_y]=border_color
+		piece_pixels,piece_colors,piece_sizes,piece_limits=collect_pieces(final_pixels,border_pixels_all)
 		for idx_x in range(final_width):
 			for idx_y in range(final_height):
 				piece_num=piece_pixels[idx_x,idx_y]
@@ -519,20 +679,81 @@ if __name__ == '__main__':
 						averaged_pixels[idx_x,idx_y]=piece_colors[piece_num-1]
 					else:
 						averaged_pixels[idx_x,idx_y]=border_color
+						BW_pixels[idx_x,idx_y]=border_color
 		num_full_pieces=0
 		for sz in piece_sizes:
 			if sz>=minimum_piece_size:
 				num_full_pieces+=1
 		print("Number of pieces: ",num_full_pieces)
-			
+
+
+		singlecanvas_limits,singlecanvas_width,singlecanvas_height=spread_piece_singlecanvas(piece_limits,final_width,final_height,piece_padding)
+		singlecanvas_image=Image.new('RGBA',(singlecanvas_width,singlecanvas_height),(0, 0, 0, 0))
+		singlecanvas_pixels=singlecanvas_image.load()
+		
+		for idx in range(len(piece_limits)):
+			for idx_x in range(piece_limits[idx][1]-piece_limits[idx][0]+1):
+				for idx_y in range(piece_limits[idx][3]-piece_limits[idx][2]+1):
+					if piece_pixels[piece_limits[idx][0]+idx_x,piece_limits[idx][2]+idx_y]==idx+1:
+						singlecanvas_pixels[singlecanvas_limits[idx][0]+idx_x,singlecanvas_limits[idx][2]+idx_y]=averaged_pixels[piece_limits[idx][0]+idx_x,piece_limits[idx][2]+idx_y]
+
 		fig1=plt.figure()
 		ax1=fig1.gca()
 		plt.imshow(final_image)
+		final_image.save("Mosaic_Natural.png")
+		BW_image.save("Mosaic_Binary.png")
+
+		px_paper_x=int(paper_size[0]*px_per_mm)-2*paper_padding #Image pixels to be printed, horizontal
+		px_paper_y=int(paper_size[1]*px_per_mm)-2*paper_padding #Image pixels to be printed, vertical
+
+		num_paper_x=int(np.ceil(final_width/px_paper_x))
+		num_paper_y=int(np.ceil(final_height/px_paper_y))
+		BW_paper_merger=PdfFileMerger()
+		Natural_paper_merger=PdfFileMerger()
+		for idx_pa_y in range(num_paper_y):
+			start_px_y=px_paper_y*idx_pa_y
+			for idx_pa_x in range(num_paper_x):
+				start_px_x=px_paper_x*idx_pa_x
+				BW_paper_image=Image.new('RGBA',(int(paper_size[0]*px_per_mm),int(paper_size[1]*px_per_mm)),(0, 0, 0, 0))
+				BW_paper_pixels=BW_paper_image.load()
+				Natural_paper_image=Image.new('RGBA',(int(paper_size[0]*px_per_mm),int(paper_size[1]*px_per_mm)),(0, 0, 0, 0))
+				Natural_paper_pixels=Natural_paper_image.load()
+				for idx_x in range(start_px_x,min(start_px_x+px_paper_x,final_width)):
+					for idx_y in range(start_px_y,min(start_px_y+px_paper_y,final_height)):
+						BW_paper_pixels[idx_x-start_px_x+paper_padding,idx_y-start_px_y+paper_padding]=BW_pixels[idx_x,idx_y]
+						Natural_paper_pixels[idx_x-start_px_x+paper_padding,idx_y-start_px_y+paper_padding]=final_pixels[idx_x,idx_y]
+				BW_paper_image.save("Mosaic_Binary_Piece"+str(idx_pa_y*num_paper_x+idx_pa_x+1)+".png")
+				save_scale_PDF([paper_size[0]/inch_to_mm,paper_size[1]/inch_to_mm],BW_paper_image,"Mosaic_Binary_Piece"+str(idx_pa_y*num_paper_x+idx_pa_x+1))
+				BW_paper_merger.append("Mosaic_Binary_Piece"+str(idx_pa_y*num_paper_x+idx_pa_x+1)+".pdf")
+				Natural_paper_image.save("Mosaic_Natural_Piece"+str(idx_pa_y*num_paper_x+idx_pa_x+1)+".png")
+				save_scale_PDF([paper_size[0]/inch_to_mm,paper_size[1]/inch_to_mm],Natural_paper_image,"Mosaic_Natural_Piece"+str(idx_pa_y*num_paper_x+idx_pa_x+1))
+				Natural_paper_merger.append("Mosaic_Natural_Piece"+str(idx_pa_y*num_paper_x+idx_pa_x+1)+".pdf")
+
+		BW_paper_merger.write("Mosaic_Binary_Piece_All.pdf")
+		BW_paper_merger.close()
+		Natural_paper_merger.write("Mosaic_Natural_Piece_All.pdf")
+		Natural_paper_merger.close()
 
 		fig2=plt.figure()
 		ax2=fig2.gca()
 		plt.imshow(averaged_image)
-		plt.show()
+		averaged_image.save("Mosaic_Averaged.png")
+
+		font=ImageFont.truetype(join(directory_path,'OpenSans-Regular.ttf'),piece_font_size)
+
+		averaged_draw=ImageDraw.Draw(averaged_image)
+		for idx in range(len(piece_limits)):
+			txt_x,txt_y=averaged_draw.textsize(str(idx+1),font=font)
+			averaged_draw.text(((piece_limits[idx][0]+piece_limits[idx][1]-txt_x)//2,(piece_limits[idx][2]+piece_limits[idx][3]-txt_y)//2),str(idx+1),(255,0,0),font)
+		averaged_image.save("Mosaic_Numbered.png")
+
+		singlecanvas_draw=ImageDraw.Draw(singlecanvas_image)
+		for idx in range(len(singlecanvas_limits)):
+			txt_x,txt_y=averaged_draw.textsize(str(idx+1),font=font)
+			singlecanvas_draw.text(((singlecanvas_limits[idx][0]+singlecanvas_limits[idx][1]-txt_x)//2,(singlecanvas_limits[idx][2]+singlecanvas_limits[idx][3]-txt_y)//2),str(idx+1),(255,0,0),font)
+		singlecanvas_image.save("Mosaic_Pieces.png")
+
+		#plt.show()
 
 
 

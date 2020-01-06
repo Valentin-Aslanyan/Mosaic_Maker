@@ -1,0 +1,10 @@
+Points
+Number | Type | Coordinates
+0 0 407 , 293
+1 0 407 , 284
+2 0 423 , 289
+3 0 422 , 281
+
+Connections
+0  ->  1
+2  ->  3
