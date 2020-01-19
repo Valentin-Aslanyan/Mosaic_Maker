@@ -10,12 +10,12 @@ Beginning with an image
 
 you can split it into pieces by clicking to select vertices and their connections. The algorithm will then split the input image into the pieces; a version with "averaged" colors, which looks more like a typical mosaic is made.
 
-<img src="https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/Mosaic_Natural.png" width="200" height="250"><img src="https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/Mosaic_Averaged.png" width="200" height="250"><img src="https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/Mosaic_Binary.png" width="200" height="250">
+<img src="https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/Mosaic_Natural.png" width="200" height="250">  <img src="https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/Mosaic_Averaged.png" width="200" height="250">  <img src="https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/Mosaic_Binary.png" width="200" height="250">
 
 
 The algorithm can be used to make a real mosaic, most easily out of plastics (example to follow) with other outputs. The pieces are numbered by the algorithm to assemble the physical copy.
 
-<img src="https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/Mosaic_Numbered.png" width="200" height="250"><img src="https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/Mosaic_Pieces.png" width="200" height="250">
+<img src="https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/Mosaic_Numbered.png" width="200" height="250">  <img src="https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/Mosaic_Pieces.png" width="200" height="250">
 
 PDF files, which can be printed to scale (on A4 paper, for instance) are generated.
 
@@ -30,11 +30,11 @@ To use this, you must first install `Python3` with the `numpy`, `matplotlib` and
 
 - On Windows, search for `cmd`, right click and run Command Prompt as administrator. Then type
 
-`pip3 install numpy`
+     `pip3 install numpy`
 
-`pip3 install matplotlib`
+     `pip3 install matplotlib`
 
-`pip3 install Image`
+     `pip3 install Image`
 
 - On Linux, open a terminal and use the commands above, either beginning with `sudo` or adding `-u`.
 
@@ -49,7 +49,7 @@ To use this, you must first install `Python3` with the `numpy`, `matplotlib` and
 
 - Open the image in the image editing program you have selected and cut out different regions of the image and paste each one to a transparent layer.
 
-(Extended explanation coming later)
+     (Extended explanation coming later)
 
 - Save each layer as an independent image, with the same dimensions as the original. Save these images in the same folder as this repository. Number each image name, 1.png, 2.png etc. See the Examples folder in this repository.
 
