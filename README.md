@@ -2,15 +2,15 @@ Create Classical (like republic era Rome) mosaics out of digital images. Work In
 
 Beginning with an image
 
-![Input photograph](https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/OriginalPhoto.png = 200x250)
+![Input photograph](https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/OriginalPhoto.png){:height="250px" width="200px"}
 
 you can split it into pieces by clicking to select vertices and their connections. The algorithm will then split the input image into the pieces; a version with "averaged" colors, which looks more like a typical mosaic is made.
 
-![Natural mosaic pieces](https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/Mosaic_Natural.png = 200x250)
+![Natural mosaic pieces](https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/Mosaic_Natural.png){:height="250px" width="200px"}
 
-![Averaged mosaic pieces](https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/Mosaic_Averaged.png = 200x250)
+![Averaged mosaic pieces](https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/Mosaic_Averaged.png){:height="250px" width="200px"}
 
-![Piece outlines](https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/Mosaic_Binary.png = 200x250)
+![Piece outlines](https://github.com/Valentin-Aslanyan/Mosaic_Maker/blob/master/Examples/Val/Mosaic_Binary.png){:height="250px" width="200px"}
 
 
 
