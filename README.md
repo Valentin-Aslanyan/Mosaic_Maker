@@ -35,6 +35,8 @@ To use this, you must first install `Python3` with the `numpy`, `matplotlib` and
      `pip3 install matplotlib`
 
      `pip3 install Image`
+     
+     `pip3 install PyPDF2`
 
 - On Linux, open a terminal and use the commands above, either beginning with `sudo` or adding `-u`.
 
