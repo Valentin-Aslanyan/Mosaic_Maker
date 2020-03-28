@@ -1,6 +1,6 @@
 Create Classical (like republic era Rome) mosaics out of digital images. Work In Progress; currently uses Python's Matplotlib for visualization, but will eventually be turned into a standalone compiled GUI, probably with qt5.
 
-The code and this guide are still works in progress, so please report any problems or improvements. I intend to 
+The code and this guide are still works in progress, so please report any problems or improvements.
 
 ## What the code does
 
